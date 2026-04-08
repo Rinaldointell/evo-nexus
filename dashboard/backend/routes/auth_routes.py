@@ -113,29 +113,19 @@ def _save_workspace_config(ws: dict):
     with open(yaml_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
 
-    # Copy routines.yaml from example if not exists
-    routines_example = config_dir / "routines.yaml.example"
-    routines_dest = config_dir / "routines.yaml"
-    if routines_example.exists() and not routines_dest.exists():
-        import shutil
-        shutil.copy2(routines_example, routines_dest)
-
-    # Generate CLAUDE.md from template
-    template_path = WORKSPACE / "CLAUDE.template.md"
+    # Generate CLAUDE.md inline (no template needed)
     claude_md_path = WORKSPACE / "CLAUDE.md"
-    if template_path.exists():
-        content = template_path.read_text()
-        replacements = {
-            "{{workspace_name}}": config["workspace"]["name"],
-            "{{owner_name}}": config["workspace"]["owner"],
-            "{{owner_role}}": "CEO",
-            "{{company_name}}": config["workspace"]["company"],
-            "{{timezone}}": config["workspace"]["timezone"],
-            "{{language}}": config["workspace"]["language"],
-        }
-        for k, v in replacements.items():
-            content = content.replace(k, v)
-        claude_md_path.write_text(content)
+    if not claude_md_path.exists():
+        ws = config["workspace"]
+        claude_md_path.write_text(
+            f"# {ws['name']} — Claude Context File\n\n"
+            f"Claude reads this file at the start of every session.\n\n"
+            f"## Who I Am\n\n"
+            f"**Name:** {ws['owner']}\n"
+            f"**Company:** {ws['company']}\n"
+            f"**Timezone:** {ws['timezone']}\n\n"
+            f"## Language\n\nAlways respond in **{ws['language']}**.\n"
+        )
 
     # Create workspace folders
     folders = ["daily-logs", "projects", "community", "social", "finance", "meetings", "courses", "strategy"]

@@ -221,47 +221,46 @@ def generate_workspace_yaml(config: dict) -> str:
 
 
 def generate_claude_md(config: dict) -> str:
-    template = (WORKSPACE / "CLAUDE.template.md").read_text()
-
-    replacements = {
-        "{{workspace_name}}": config["workspace_name"],
-        "{{owner_name}}": config["owner_name"],
-        "{{owner_role}}": config.get("owner_role", "CEO"),
-        "{{company_name}}": config["company_name"],
-        "{{timezone}}": config["timezone"],
-        "{{language}}": config["language"],
-        "{{skill_count}}": str(len(list((WORKSPACE / ".claude" / "skills").iterdir())) if (WORKSPACE / ".claude" / "skills").is_dir() else 0),
-    }
-
-    for key, folder in config["folders"].items():
-        replacements[f"{{{{{key}}}}}"] = folder
-        replacements[f"{{{{folder_{key}}}}}"] = folder
-
-    result = template
-    for placeholder, value in replacements.items():
-        result = result.replace(placeholder, value)
-
-    # Remove mustache blocks ({{#agents}} ... {{/agents}}) — simplified
-    # In a real implementation, use a proper template engine
-    # For now, build the agents table manually
+    """Generate CLAUDE.md inline — no template file needed."""
     agent_table = ""
     for agent in AGENTS:
         if agent["key"] in config["agents"]:
             agent_table += f"| **{agent['label'].title()}** | `/{agent['key']}` | {agent['desc']} |\n"
 
-    # Replace the agents block
-    import re
-    result = re.sub(
-        r'\{\{#agents\}\}.*?\{\{/agents\}\}',
-        agent_table.strip(),
-        result,
-        flags=re.DOTALL,
-    )
+    skill_count = len(list((WORKSPACE / ".claude" / "skills").iterdir())) if (WORKSPACE / ".claude" / "skills").is_dir() else 0
 
-    # Remove integration blocks (simplified)
-    result = re.sub(r'\{\{#integrations\}\}.*?\{\{/integrations\}\}', '', result, flags=re.DOTALL)
+    return f"""# {config['workspace_name']} — Claude Context File
 
-    return result
+Claude reads this file at the start of every session.
+
+## Who I Am
+
+**Name:** {config['owner_name']}
+**Company:** {config['company_name']}
+**Timezone:** {config['timezone']}
+
+## Active Agents
+
+| Agent | Command | Domain |
+|-------|---------|--------|
+{agent_table}
+## Skills ({skill_count} skills)
+
+See `.claude/skills/CLAUDE.md` for the complete index.
+
+## What Claude Should Do
+
+- Always respond in **{config['language']}**.
+- Keep a professional, clear and well-organized tone.
+- Use the right agents for each domain (see agents table above).
+- Use skills with the correct prefix (see `.claude/skills/CLAUDE.md`).
+
+## What Claude Should NOT Do
+
+- Don't edit notes without asking permission. Only files with prefix [C] are free to edit.
+- Don't be verbose — be direct and concrete.
+- Don't create projects without first interviewing the user about the objective and context.
+"""
 
 
 def copy_env_example(config: dict):
@@ -279,14 +278,17 @@ def copy_env_example(config: dict):
 
 
 def copy_routines_config(config: dict):
-    src = WORKSPACE / "config" / "routines.yaml.example"
     dst = WORKSPACE / "config" / "routines.yaml"
     if dst.exists():
         print(f"  {YELLOW}!{RESET} config/routines.yaml already exists, skipping")
         return
+    # Try example file first, otherwise generate minimal config
+    src = WORKSPACE / "config" / "routines.yaml.example"
     if src.exists():
         shutil.copy2(src, dst)
-        print(f"  {GREEN}✓{RESET} Created config/routines.yaml")
+    else:
+        dst.write_text("# OpenClaude Routines — edit schedules here\n# See ROUTINES.md for documentation\n\ndaily: []\nweekly: []\nmonthly: []\n")
+    print(f"  {GREEN}✓{RESET} Created config/routines.yaml")
 
 
 def create_folders(config: dict):

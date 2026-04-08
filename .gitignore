@@ -65,9 +65,10 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# ── Generated configs (personal) ─────────
+# ── Generated configs (user-specific) ────
 CLAUDE.md
 config/workspace.yaml
+config/routines.yaml
 
 # ── Claude Code session data ─────────────
 .claude/projects/
