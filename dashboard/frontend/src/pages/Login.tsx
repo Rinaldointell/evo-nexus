@@ -78,6 +78,13 @@ export default function Login() {
             </button>
           </form>
         </div>
+
+        {/* Credits */}
+        <div className="text-center mt-6">
+          <a href="https://evolutionfoundation.com.br" target="_blank" rel="noopener noreferrer" className="text-[#667085] text-xs hover:text-[#00FFA7] transition-colors">
+            by <span className="font-semibold text-[#00FFA7]/70 hover:text-[#00FFA7]">Evolution Foundation</span>
+          </a>
+        </div>
       </div>
     </div>
   )
