@@ -77,6 +77,7 @@ PUBLIC_PATHS = {
     "/api/auth/login",
     "/api/auth/needs-setup",
     "/api/auth/setup",
+    "/api/config/workspace-status",
 }
 
 @app.before_request

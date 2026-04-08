@@ -1,47 +1,16 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
-import { Check } from 'lucide-react'
-
-const AGENTS = [
-  { key: 'ops', label: 'Ops', desc: 'Daily operations (briefing, email, tasks)' },
-  { key: 'finance', label: 'Finance', desc: 'Financial (P&L, cash flow, invoices)' },
-  { key: 'projects', label: 'Projects', desc: 'Project management (sprints, milestones)' },
-  { key: 'community', label: 'Community', desc: 'Community (Discord, WhatsApp pulse)' },
-  { key: 'social', label: 'Social', desc: 'Social media (content, analytics)' },
-  { key: 'strategy', label: 'Strategy', desc: 'Strategy (OKRs, roadmap)' },
-  { key: 'sales', label: 'Sales', desc: 'Commercial (pipeline, proposals)' },
-  { key: 'courses', label: 'Courses', desc: 'Education (course creation)' },
-  { key: 'personal', label: 'Personal', desc: 'Personal (health, habits)' },
-]
-
-const INTEGRATIONS = [
-  { key: 'google_calendar', label: 'Google Calendar + Gmail' },
-  { key: 'todoist', label: 'Todoist' },
-  { key: 'discord', label: 'Discord' },
-  { key: 'telegram', label: 'Telegram' },
-  { key: 'whatsapp', label: 'WhatsApp' },
-  { key: 'stripe', label: 'Stripe' },
-  { key: 'omie', label: 'Omie ERP' },
-  { key: 'github', label: 'GitHub' },
-  { key: 'linear', label: 'Linear' },
-  { key: 'youtube', label: 'YouTube' },
-  { key: 'instagram', label: 'Instagram' },
-  { key: 'linkedin', label: 'LinkedIn' },
-  { key: 'fathom', label: 'Fathom (meetings)' },
-]
 
 export default function Setup() {
   const { refreshUser } = useAuth()
-  const [step, setStep] = useState(1)
+  const [hasConfig, setHasConfig] = useState<boolean | null>(null)
 
-  // Step 1: Workspace
+  // Step 1: Workspace (only if no config exists)
   const [ownerName, setOwnerName] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [timezone, setTimezone] = useState('America/Sao_Paulo')
   const [language, setLanguage] = useState('en')
-  const [selectedAgents, setSelectedAgents] = useState<string[]>(['ops', 'finance', 'projects', 'community'])
-  const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>([])
 
   // Step 2: Admin account
   const [username, setUsername] = useState('')
@@ -53,24 +22,26 @@ export default function Setup() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const toggleAgent = (key: string) => {
-    setSelectedAgents(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    )
-  }
+  // Check if workspace.yaml already exists (CLI setup done)
+  useEffect(() => {
+    api.get('/config/workspace-status').then((data: { configured: boolean }) => {
+      setHasConfig(data.configured)
+    }).catch(() => setHasConfig(false))
+  }, [])
 
-  const toggleIntegration = (key: string) => {
-    setSelectedIntegrations(prev =>
-      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-    )
-  }
+  const [currentStep, setCurrentStep] = useState(1)
+
+  // If config exists, skip to step 2
+  useEffect(() => {
+    if (hasConfig === true) setCurrentStep(2)
+  }, [hasConfig])
 
   const handleStep1 = (e: FormEvent) => {
     e.preventDefault()
     if (!ownerName.trim()) { setError('Your name is required'); return }
     setError('')
     setDisplayName(ownerName)
-    setStep(2)
+    setCurrentStep(2)
   }
 
   const handleStep2 = async (e: FormEvent) => {
@@ -82,7 +53,7 @@ export default function Setup() {
 
     setSubmitting(true)
     try {
-      // Collect geo data via IP lookup (silent, best-effort)
+      // Collect geo (silent, best-effort)
       let geo = {}
       try {
         const geoResp = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) })
@@ -100,20 +71,20 @@ export default function Setup() {
         }
       } catch { /* geo is optional */ }
 
-      // Save workspace config + register license
       await api.post('/auth/setup', {
-        workspace: {
+        // Only send workspace config if not already configured via CLI
+        workspace: hasConfig ? undefined : {
           owner_name: ownerName.trim(),
           company_name: companyName.trim(),
           timezone,
           language,
-          agents: selectedAgents,
-          integrations: selectedIntegrations,
+          agents: [],
+          integrations: [],
           geo,
         },
         username: username.trim(),
         email: email.trim() || undefined,
-        display_name: displayName.trim() || username.trim(),
+        display_name: (displayName.trim() || ownerName.trim() || username.trim()),
         password,
       })
       await refreshUser()
@@ -126,9 +97,15 @@ export default function Setup() {
 
   const inputClass = "w-full px-4 py-2.5 rounded-lg bg-[#0C111D] border border-[#344054] text-white placeholder-[#667085] focus:outline-none focus:border-[#00FFA7] focus:ring-1 focus:ring-[#00FFA7] transition-colors text-sm"
 
+  if (hasConfig === null) return (
+    <div className="min-h-screen bg-[#0C111D] flex items-center justify-center">
+      <div className="text-[#667085] text-sm">Loading...</div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-[#0C111D] flex items-center justify-center px-4 py-8 font-[Inter]">
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-md">
         <div className="bg-[#182230] rounded-2xl border border-[#344054] p-8 shadow-2xl">
           {/* Logo */}
           <div className="text-center mb-6">
@@ -137,13 +114,14 @@ export default function Setup() {
               <span className="text-white">Claude</span>
             </h1>
             <p className="text-[#667085] text-sm mt-2">
-              {step === 1 ? 'Step 1/2 — Configure your workspace' : 'Step 2/2 — Create admin account'}
+              {currentStep === 1 ? 'Configure your workspace' : 'Create your admin account'}
             </p>
-            {/* Progress */}
-            <div className="flex gap-2 justify-center mt-3">
-              <div className={`h-1 w-16 rounded-full ${step >= 1 ? 'bg-[#00FFA7]' : 'bg-[#344054]'}`} />
-              <div className={`h-1 w-16 rounded-full ${step >= 2 ? 'bg-[#00FFA7]' : 'bg-[#344054]'}`} />
-            </div>
+            {!hasConfig && (
+              <div className="flex gap-2 justify-center mt-3">
+                <div className={`h-1 w-16 rounded-full ${currentStep >= 1 ? 'bg-[#00FFA7]' : 'bg-[#344054]'}`} />
+                <div className={`h-1 w-16 rounded-full ${currentStep >= 2 ? 'bg-[#00FFA7]' : 'bg-[#344054]'}`} />
+              </div>
+            )}
           </div>
 
           {error && (
@@ -152,8 +130,8 @@ export default function Setup() {
             </div>
           )}
 
-          {/* Step 1: Workspace */}
-          {step === 1 && (
+          {/* Step 1: Workspace config (only if CLI setup was not done) */}
+          {currentStep === 1 && !hasConfig && (
             <form onSubmit={handleStep1} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[#D0D5DD] mb-1.5">Your Name *</label>
@@ -182,44 +160,6 @@ export default function Setup() {
                 </div>
               </div>
 
-              {/* Agents */}
-              <div>
-                <label className="block text-sm font-medium text-[#D0D5DD] mb-2">Agents</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {AGENTS.map(a => (
-                    <button key={a.key} type="button" onClick={() => toggleAgent(a.key)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                        selectedAgents.includes(a.key)
-                          ? 'border-[#00FFA7] bg-[#00FFA7]/10 text-[#00FFA7]'
-                          : 'border-[#344054] text-[#667085] hover:border-[#667085]'
-                      }`}>
-                      {selectedAgents.includes(a.key) && <Check size={12} />}
-                      {a.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Integrations */}
-              <div>
-                <label className="block text-sm font-medium text-[#D0D5DD] mb-2">
-                  Integrations <span className="text-[#667085] font-normal">(configure API keys later)</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {INTEGRATIONS.map(i => (
-                    <button key={i.key} type="button" onClick={() => toggleIntegration(i.key)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                        selectedIntegrations.includes(i.key)
-                          ? 'border-[#00FFA7] bg-[#00FFA7]/10 text-[#00FFA7]'
-                          : 'border-[#344054] text-[#667085] hover:border-[#667085]'
-                      }`}>
-                      {selectedIntegrations.includes(i.key) && <Check size={12} />}
-                      {i.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <button type="submit"
                 className="w-full py-2.5 rounded-lg bg-[#00FFA7] text-[#0C111D] font-semibold text-sm hover:bg-[#00FFA7]/90 transition-colors mt-2">
                 Next
@@ -228,7 +168,7 @@ export default function Setup() {
           )}
 
           {/* Step 2: Admin Account */}
-          {step === 2 && (
+          {currentStep === 2 && (
             <form onSubmit={handleStep2} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-[#D0D5DD] mb-1.5">Username *</label>
@@ -257,13 +197,15 @@ export default function Setup() {
               </div>
 
               <div className="flex gap-3 mt-2">
-                <button type="button" onClick={() => setStep(1)}
-                  className="flex-1 py-2.5 rounded-lg text-[#D0D5DD] text-sm hover:bg-white/5 border border-[#344054] transition-colors">
-                  Back
-                </button>
+                {!hasConfig && (
+                  <button type="button" onClick={() => setCurrentStep(1)}
+                    className="flex-1 py-2.5 rounded-lg text-[#D0D5DD] text-sm hover:bg-white/5 border border-[#344054] transition-colors">
+                    Back
+                  </button>
+                )}
                 <button type="submit" disabled={submitting}
-                  className="flex-1 py-2.5 rounded-lg bg-[#00FFA7] text-[#0C111D] font-semibold text-sm hover:bg-[#00FFA7]/90 transition-colors disabled:opacity-50">
-                  {submitting ? 'Setting up...' : 'Create & Start'}
+                  className={`${hasConfig ? 'w-full' : 'flex-1'} py-2.5 rounded-lg bg-[#00FFA7] text-[#0C111D] font-semibold text-sm hover:bg-[#00FFA7]/90 transition-colors disabled:opacity-50`}>
+                  {submitting ? 'Setting up...' : 'Create Admin & Start'}
                 </button>
               </div>
             </form>

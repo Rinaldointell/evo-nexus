@@ -7,6 +7,13 @@ from routes._helpers import WORKSPACE, safe_read
 bp = Blueprint("config", __name__)
 
 
+@bp.route("/api/config/workspace-status")
+def workspace_status():
+    """Check if workspace.yaml exists (CLI setup was done)."""
+    config_path = WORKSPACE / "config" / "workspace.yaml"
+    return jsonify({"configured": config_path.is_file()})
+
+
 @bp.route("/api/config/claude-md")
 def get_claude_md():
     content = safe_read(WORKSPACE / "CLAUDE.md")
