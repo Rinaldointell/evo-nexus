@@ -98,5 +98,8 @@ site/.npmrc
 site/pnpm-lock.yaml
 site/pnpm-workspace.yaml
 site/replit.md
-site/lib/mempalace.yaml
+site/lib/
+
+# ── User-specific data ───────────
+mempalace.yaml
 entities.json
