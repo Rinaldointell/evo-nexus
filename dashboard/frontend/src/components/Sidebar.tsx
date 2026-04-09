@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, FileText, Bot, Clock, Zap, Layout, Calendar,
   Brain, Plug, DollarSign, Settings, FolderOpen, MessageSquare,
   Monitor, Users, ScrollText, LogOut, Menu, X, Shield, BookOpen, Library,
-  ArrowUpCircle,
+  ArrowUpCircle, ChevronDown,
 } from 'lucide-react'
 
 interface VersionInfo {
@@ -16,30 +16,94 @@ interface VersionInfo {
   release_notes: string | null
 }
 
-const navItems = [
-  { to: '/chat', label: 'Chat', icon: MessageSquare, resource: 'chat', desktopOnly: true },
-  { to: '/', label: 'Overview', icon: LayoutDashboard, resource: null },
-  { to: '/systems', label: 'Systems', icon: Monitor, resource: 'systems' },
-  { to: '/reports', label: 'Reports', icon: FileText, resource: 'reports' },
-  { to: '/agents', label: 'Agents', icon: Bot, resource: 'agents' },
-  { to: '/routines', label: 'Routines', icon: Clock, resource: 'routines' },
-  { to: '/skills', label: 'Skills', icon: Zap, resource: 'skills' },
-  { to: '/templates', label: 'Templates', icon: Layout, resource: 'templates' },
-  { to: '/scheduler', label: 'Services', icon: Calendar, resource: 'scheduler' },
-  { to: '/memory', label: 'Memory', icon: Brain, resource: 'memory' },
-  { to: '/mempalace', label: 'Knowledge', icon: Library, resource: 'mempalace' },
-  { to: '/integrations', label: 'Integrations', icon: Plug, resource: 'integrations' },
-  { to: '/costs', label: 'Costs', icon: DollarSign, resource: 'costs' },
-  { to: '/config', label: 'Config', icon: Settings, resource: 'config' },
-  { to: '/files', label: 'Files', icon: FolderOpen, resource: 'files' },
-  { to: '/docs', label: 'Docs', icon: BookOpen, resource: null },
+interface NavItem {
+  to: string
+  label: string
+  icon: React.ComponentType<{ size?: number }>
+  resource: string | null
+  desktopOnly?: boolean
+}
+
+interface NavGroup {
+  key: string
+  label: string
+  collapsible: boolean
+  adminOnly?: boolean
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    key: 'main',
+    label: 'Main',
+    collapsible: false,
+    items: [
+      { to: '/', label: 'Overview', icon: LayoutDashboard, resource: null },
+      { to: '/chat', label: 'Chat', icon: MessageSquare, resource: 'chat', desktopOnly: true },
+    ],
+  },
+  {
+    key: 'operations',
+    label: 'Operations',
+    collapsible: true,
+    items: [
+      { to: '/agents', label: 'Agents', icon: Bot, resource: 'agents' },
+      { to: '/skills', label: 'Skills', icon: Zap, resource: 'skills' },
+      { to: '/routines', label: 'Routines', icon: Clock, resource: 'routines' },
+      { to: '/templates', label: 'Templates', icon: Layout, resource: 'templates' },
+    ],
+  },
+  {
+    key: 'data',
+    label: 'Data',
+    collapsible: true,
+    items: [
+      { to: '/reports', label: 'Reports', icon: FileText, resource: 'reports' },
+      { to: '/memory', label: 'Memory', icon: Brain, resource: 'memory' },
+      { to: '/mempalace', label: 'Knowledge', icon: Library, resource: 'mempalace' },
+      { to: '/files', label: 'Files', icon: FolderOpen, resource: 'files' },
+      { to: '/costs', label: 'Costs', icon: DollarSign, resource: 'costs' },
+    ],
+  },
+  {
+    key: 'system',
+    label: 'System',
+    collapsible: true,
+    items: [
+      { to: '/systems', label: 'Systems', icon: Monitor, resource: 'systems' },
+      { to: '/integrations', label: 'Integrations', icon: Plug, resource: 'integrations' },
+      { to: '/scheduler', label: 'Services', icon: Calendar, resource: 'scheduler' },
+      { to: '/config', label: 'Config', icon: Settings, resource: 'config' },
+    ],
+  },
+  {
+    key: 'admin',
+    label: 'Admin',
+    collapsible: true,
+    adminOnly: true,
+    items: [
+      { to: '/users', label: 'Users', icon: Users, resource: 'users' },
+      { to: '/roles', label: 'Roles', icon: Shield, resource: 'users' },
+      { to: '/audit', label: 'Audit Log', icon: ScrollText, resource: 'audit' },
+    ],
+  },
 ]
 
-const adminItems = [
-  { to: '/users', label: 'Users', icon: Users, resource: 'users' },
-  { to: '/roles', label: 'Roles', icon: Shield, resource: 'users' },
-  { to: '/audit', label: 'Audit Log', icon: ScrollText, resource: 'audit' },
-]
+const STORAGE_KEY = 'sidebar-collapsed-groups'
+
+function loadCollapsedState(): Record<string, boolean> {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) return JSON.parse(stored)
+  } catch {}
+  return {}
+}
+
+function saveCollapsedState(state: Record<string, boolean>) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch {}
+}
 
 const roleBadgeClass: Record<string, string> = {
   admin: 'bg-purple-500/20 text-purple-400',
@@ -51,6 +115,7 @@ export default function Sidebar() {
   const { user, logout, hasPermission } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsedState)
 
   useEffect(() => {
     fetch('/api/version/check')
@@ -59,23 +124,23 @@ export default function Sidebar() {
       .catch(() => {})
   }, [])
 
-  const visibleNav = navItems.filter(
-    (item) => item.resource === null || hasPermission(item.resource, 'view')
-  )
+  const toggleGroup = useCallback((key: string) => {
+    setCollapsed((prev) => {
+      const next = { ...prev, [key]: !prev[key] }
+      saveCollapsedState(next)
+      return next
+    })
+  }, [])
 
-  const visibleAdmin = adminItems.filter((item) =>
-    hasPermission(item.resource, 'view')
-  )
-
-  const renderLink = (item: (typeof navItems)[number]) => (
+  const renderLink = (item: NavItem) => (
     <NavLink
       key={item.to}
       to={item.to}
       end={item.to === '/'}
       onClick={() => setMobileOpen(false)}
       className={({ isActive }) =>
-        `items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors mb-0.5 ${
-          (item as any).desktopOnly ? 'hidden lg:flex' : 'flex'
+        `items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+          item.desktopOnly ? 'hidden lg:flex' : 'flex'
         } ${
           isActive
             ? 'text-[#00FFA7] bg-[#00FFA7]/10 border-l-2 border-[#00FFA7]'
@@ -83,10 +148,66 @@ export default function Sidebar() {
         }`
       }
     >
-      <item.icon size={18} />
+      <item.icon size={16} />
       {item.label}
     </NavLink>
   )
+
+  const renderGroup = (group: NavGroup) => {
+    // Filter items by permission
+    const visibleItems = group.items.filter(
+      (item) => item.resource === null || hasPermission(item.resource, 'view')
+    )
+
+    if (visibleItems.length === 0) return null
+
+    // Admin group: only show if user has permission to view at least one admin item
+    if (group.adminOnly) {
+      const hasAnyAdmin = group.items.some((item) =>
+        item.resource && hasPermission(item.resource, 'view')
+      )
+      if (!hasAnyAdmin) return null
+    }
+
+    const isCollapsed = collapsed[group.key] ?? false
+
+    return (
+      <div key={group.key} className="mb-1">
+        {group.collapsible ? (
+          <button
+            onClick={() => toggleGroup(group.key)}
+            className="w-full flex items-center justify-between px-3 py-1.5 mt-2 group cursor-pointer"
+          >
+            <span className="text-[10px] uppercase tracking-wider text-[#667085] font-semibold select-none">
+              {group.label}
+            </span>
+            <ChevronDown
+              size={12}
+              className={`text-[#667085] transition-transform duration-200 group-hover:text-[#D0D5DD] ${
+                isCollapsed ? '-rotate-90' : ''
+              }`}
+            />
+          </button>
+        ) : (
+          <div className="px-3 py-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-[#667085] font-semibold">
+              {group.label}
+            </span>
+          </div>
+        )}
+
+        <div
+          className={`overflow-hidden transition-all duration-200 ease-in-out ${
+            group.collapsible && isCollapsed ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'
+          }`}
+        >
+          <div className="flex flex-col gap-0.5">
+            {visibleItems.map(renderLink)}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const sidebarContent = (
     <>
@@ -101,16 +222,25 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        {visibleNav.map(renderLink)}
+        {navGroups.map(renderGroup)}
 
-        {visibleAdmin.length > 0 && (
-          <>
-            <div className="mt-4 mb-2 px-3">
-              <p className="text-[10px] uppercase tracking-wider text-[#667085] font-semibold">Admin</p>
-            </div>
-            {visibleAdmin.map(renderLink)}
-          </>
-        )}
+        {/* Docs link — standalone at the bottom of nav */}
+        <div className="mt-2">
+          <NavLink
+            to="/docs"
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive
+                  ? 'text-[#00FFA7] bg-[#00FFA7]/10 border-l-2 border-[#00FFA7]'
+                  : 'text-[#667085] hover:text-[#D0D5DD] hover:bg-white/5 border-l-2 border-transparent'
+              }`
+            }
+          >
+            <BookOpen size={16} />
+            Docs
+          </NavLink>
+        </div>
       </nav>
 
       {user && (

@@ -30,12 +30,12 @@
 ### Developer Experience
 
 - [x] 🔥 **CLI installer** — `npx @evoapi/open-claude` — clones repo, installs deps, runs interactive setup wizard.
-- [ ] **Full Docker install** — single `docker-compose up` that brings up dashboard, scheduler, and all services.
+- [x] **Full Docker install** — `docker compose up dashboard` with multi-stage Dockerfile + GitHub Actions CI pushing to GHCR.
 - [x] **Update checker** — dashboard checks GitHub releases and shows upgrade notification.
 
 ### Dashboard UX
 
-- [ ] **Sidebar reorganization** — current sidebar is too long; group by domain, collapse sections, add search.
+- [x] **Sidebar reorganization** — 5 collapsible groups (Main, Operations, Data, System, Admin) with localStorage persistence.
 - [ ] **Active agent visualization** — use Claude Code hooks to display running agents in real-time (polished UI for demos).
 
 ---
@@ -97,17 +97,6 @@
 ### Development
 
 - [ ] **Testing framework** — define and implement test strategy for skills, routines, and agent behaviors; prevent regressions.
-
----
-
-## Future / Research
-
-> Items that need more design, exploration, or external dependencies.
-
-- [ ] 💡 **Project naming** — evaluate whether "OpenClaude" remains the right brand as multi-LLM support grows. Candidates: Evo Agents OS, Evo Runtime, Evo Orchestrator.
-- [ ] 💡 **Fully open source stack** — research open LLM models (Mistral, Llama, Qwen) and open agent runtimes (CrewAI, LangGraph) that could complement or replace Claude Code dependency.
-- [ ] 💡 **DeepAgents compatibility** — investigate whether DeepAgents paradigm is compatible with OpenClaude's agent+skill architecture.
-- [ ] 💡 **Ecosystem diagram** — canonical visual of how all components interact: agents, skills, routines, dashboard, MCPs, integrations.
 
 ---
 

@@ -171,8 +171,11 @@ clean-logs:         ## 🗑️  Remove logs older than 30 days
 
 # --- Docker (VPS) ---
 
-docker-up:          ## 🐳 Start scheduler + telegram in Docker
-	docker compose up -d scheduler telegram
+docker-dashboard:   ## 🐳 Start dashboard in Docker (port 8080)
+	docker compose up -d dashboard
+
+docker-telegram:    ## 🐳 Start Telegram bot in Docker
+	docker compose up -d telegram
 
 docker-down:        ## 🐳 Stop all containers
 	docker compose down
@@ -189,5 +192,5 @@ docker-build:       ## 🐳 Build the image
 help:               ## 📖 Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' Makefile | sort | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: morning sync triage review memory eod dashboard youtube instagram linkedin social fin-pulse licensing weekly health trends linear community community-week community-month github faq strategy fin-weekly licensing-weekly fin-close licensing-month daily scheduler social-auth telegram telegram-stop telegram-attach logs logs-detail logs-tail metrics clean-logs docker-up docker-down docker-logs docker-run docker-build help
+.PHONY: morning sync triage review memory eod dashboard youtube instagram linkedin social fin-pulse licensing weekly health trends linear community community-week community-month github faq strategy fin-weekly licensing-weekly fin-close licensing-month daily scheduler social-auth telegram telegram-stop telegram-attach logs logs-detail logs-tail metrics clean-logs docker-dashboard docker-telegram docker-down docker-logs docker-run docker-build help
 .DEFAULT_GOAL := help

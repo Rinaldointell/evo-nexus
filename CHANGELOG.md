@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-04-09
+
+### Added
+- **Docker Compose for dashboard** — `Dockerfile.dashboard` (multi-stage: node + python) + `docker-compose.yml` with dashboard, telegram, and runner services. `make docker-dashboard` to start.
+- **Dashboard CI** — GitHub Actions workflow builds and pushes dashboard image to `ghcr.io/evolutionapi/open-claude/dashboard` on push/release
+- **npm CI** — GitHub Actions workflow publishes CLI to npm on release (requires `NPM_TOKEN` secret)
+
+### Changed
+- **Sidebar reorganized** — 5 collapsible groups (Main, Operations, Data, System, Admin) with collapse state persisted in localStorage
+- **Scheduler removed from docker-compose** — runs embedded in dashboard, not as separate service
+- **`make docker-up` → `make docker-telegram`** — reflects that only Telegram is a separate Docker service
+- **Public roadmap updated** — removed internal Future/Research section, marked completed items
+
 ## [0.4.0] - 2026-04-09
 
 ### Added
