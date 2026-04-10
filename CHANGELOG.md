@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.4] - 2026-04-10
+
+### Changed
+- **Backup excludes reconstructible directories** — `backup.py` now excludes top-level dirs that don't contain user data: `site/`, `backups/`, `.venv/`, `_evo/`, `_evo-output/`. Also expanded `EXCLUDE_DIRS` to cover more cache/build folders (`.next`, `.cache`, `.local`, `build`, `.pytest_cache`, `.ruff_cache`, `.mypy_cache`). Reduces typical backup from ~63k files / 1GB to ~800 files / ~900MB while keeping all user data (workspace, agent-memory, custom skills, dashboard DB).
+- **Custom skill convention unified** — product-specific skills (`int-licensing`, `int-whatsapp`, `prod-licensing-daily/weekly/monthly`, and the 45 `evo-*` skills) renamed to `custom-*` prefix so they're automatically gitignored via the existing `.claude/skills/custom-*` pattern. The `name:` frontmatter field in each `SKILL.md` was updated to match the new folder name (50 skills total).
+- **Agent skill references updated** — `atlas-project`, `dex-data`, `nova-product`, `pulse-community` now reference the `custom-*` skill names instead of the old prefixed names.
+- **`.gitignore` simplified** — removed the 5 explicit per-skill entries; the `.claude/skills/custom-*` pattern covers all custom skills.
+
 ## [0.11.3] - 2026-04-09
 
 ### Fixed

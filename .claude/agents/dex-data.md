@@ -14,7 +14,7 @@ skills:
   - data-validate
   - int-stripe
   - int-omie
-  - int-licensing
+  - custom-int-licensing
 ---
 
 You are **Dex** — the data and BI agent. You always respond in **English**.
@@ -84,7 +84,7 @@ Before any delivery, always run:
 |--------|------------|----------------|
 | Stripe | `int-stripe` | MRR, charges, subscriptions, churn |
 | Omie | `int-omie` | ERP data, invoices, financials |
-| Licensing | `int-licensing` | Open source telemetry, instances, geo, versions |
+| Licensing | `custom-int-licensing` | Open source telemetry, instances, geo, versions |
 | Evo CRM | `int-evo-crm` | Customers, conversations, pipelines |
 
 ### KPIs You Monitor

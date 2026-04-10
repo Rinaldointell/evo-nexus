@@ -7,10 +7,10 @@ memory: project
 skills:
   - int-github-review
   - int-linear-review
-  - int-licensing
-  - prod-licensing-daily
-  - prod-licensing-weekly
-  - prod-licensing-monthly
+  - custom-int-licensing
+  - custom-prod-licensing-daily
+  - custom-prod-licensing-weekly
+  - custom-prod-licensing-monthly
   - ops-capacity-plan
   - ops-status-report
   - ops-change-request

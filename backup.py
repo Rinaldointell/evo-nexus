@@ -21,13 +21,31 @@ from pathlib import Path
 WORKSPACE = Path(__file__).parent
 BACKUPS_DIR = WORKSPACE / "backups"
 
-# Directories and patterns to always exclude (reconstructible / heavy)
+# Directories to exclude wherever they appear in the path (reconstructible / heavy)
 EXCLUDE_DIRS = {
     "node_modules",
     ".venv",
     "__pycache__",
     "dist",
     ".git",
+    ".next",
+    ".cache",
+    ".local",
+    "build",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+}
+
+# Top-level directories to exclude entirely (relative to workspace root).
+# These are reconstructible from source (npm install, build, git clone, etc.)
+# and don't contain user data worth backing up.
+EXCLUDE_TOP_LEVEL = {
+    "site",         # static site (rebuilds from docs/)
+    "backups",      # previous backups (don't nest backups inside backups)
+    ".venv",        # Python virtualenv
+    "_evo",         # Evo method snapshot
+    "_evo-output",  # Evo method output
 }
 
 EXCLUDE_EXTENSIONS = {
@@ -98,6 +116,10 @@ def _get_workspace_name() -> str:
 def _should_exclude(rel_path: str) -> bool:
     """Check if a file should be excluded from backup."""
     parts = Path(rel_path).parts
+    # Exclude entire top-level directories (site/, backups/, etc.)
+    if parts and parts[0] in EXCLUDE_TOP_LEVEL:
+        return True
+    # Exclude anywhere in the path (node_modules, .venv, __pycache__, etc.)
     for part in parts:
         if part in EXCLUDE_DIRS:
             return True

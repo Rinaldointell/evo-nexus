@@ -31,16 +31,10 @@ workspace/strategy/*
 .claude/agent-memory/
 memory/
 
-# ── Product-specific skills (not generic) ─
-.claude/skills/int-licensing/
-.claude/skills/int-whatsapp/
-.claude/skills/prod-licensing-daily/
-.claude/skills/prod-licensing-weekly/
-.claude/skills/prod-licensing-monthly/
-
-# ── Custom agents (user-specific) ────────
+# ── Custom agents/skills/commands (user-specific) ────────
 .claude/agents/custom-*
 .claude/commands/custom-*
+.claude/skills/custom-*
 
 # ── Custom templates (user-specific) ─────
 .claude/templates/html/custom/
@@ -63,7 +57,6 @@ dashboard/frontend/dist/
 # ── Evo Method (separate project) ────────
 _evo/
 _evo-output/
-.claude/skills/evo-*/
 .claude/skills/release/
 
 # ── Python ────────────────────────────────
