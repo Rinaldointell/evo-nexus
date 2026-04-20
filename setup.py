@@ -11,6 +11,30 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Windows compatibility patch
+_IS_WINDOWS = sys.platform == "win32" or os.name == "nt"
+if not hasattr(os, 'getuid'):
+    os.getuid = lambda: 1000
+if _IS_WINDOWS:
+    # Add Windows-specific tool paths
+    _win_paths = [
+        r'C:\Users\LENOVO\AppData\Roaming\Python\Python314\Scripts',
+        r'C:\Users\LENOVO\AppData\Roaming\npm',
+        r'C:\Python314\Scripts',
+    ]
+    for _p in _win_paths:
+        if _p not in os.environ.get('PATH', ''):
+            os.environ['PATH'] = _p + os.pathsep + os.environ.get('PATH', '')
+    # Ensure uv.exe is directly accessible — always prepend if found
+    for _candidate in [
+        r'C:\Users\LENOVO\AppData\Roaming\Python\Python314\Scripts\uv.exe',
+        r'C:\Python314\Scripts\uv.exe',
+    ]:
+        if os.path.exists(_candidate):
+            _uv_dir = os.path.dirname(_candidate)
+            os.environ['PATH'] = _uv_dir + ';' + os.environ.get('PATH', '')
+            break
+
 WORKSPACE = Path(__file__).parent
 
 # ANSI colors
@@ -31,8 +55,25 @@ def banner():
 """)
 
 
+def _resolve_cmd(cmd):
+    """On Windows, resolve full path (including .cmd/.exe) to avoid CreateProcess issues."""
+    if not _IS_WINDOWS:
+        return cmd
+    import shutil
+    base = cmd[0]
+    found = shutil.which(base)
+    if found:
+        return [found] + cmd[1:]
+    for ext in ['.cmd', '.exe', '.bat']:
+        found = shutil.which(base + ext)
+        if found:
+            return [found] + cmd[1:]
+    return cmd
+
+
 def _check_tool(name, cmd, install_cmd=None, install_label=None):
     """Check if a tool is installed. If not, offer to install it."""
+    cmd = _resolve_cmd(cmd)
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         if result.returncode == 0:
@@ -85,18 +126,21 @@ def check_prerequisites():
         else:
             raise FileNotFoundError
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        print(f"  {DIM}Installing build-essential...{RESET}", end="", flush=True)
-        os.system("apt install -y build-essential > /dev/null 2>&1 || yum groupinstall -y 'Development Tools' > /dev/null 2>&1")
-        try:
-            result = subprocess.run(["g++", "--version"], capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                print(f"  {GREEN}✓{RESET} build-essential: {DIM}installed{RESET}")
-            else:
+        if _IS_WINDOWS:
+            print(f"  {YELLOW}!{RESET} build-essential: skipped on Windows (not required)")
+        else:
+            print(f"  {DIM}Installing build-essential...{RESET}", end="", flush=True)
+            os.system("apt install -y build-essential > /dev/null 2>&1 || yum groupinstall -y 'Development Tools' > /dev/null 2>&1")
+            try:
+                result = subprocess.run(["g++", "--version"], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    print(f"  {GREEN}✓{RESET} build-essential: {DIM}installed{RESET}")
+                else:
+                    print(f"  {RED}✗{RESET} build-essential install failed")
+                    missing.append("build-essential")
+            except (FileNotFoundError, subprocess.TimeoutExpired):
                 print(f"  {RED}✗{RESET} build-essential install failed")
                 missing.append("build-essential")
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            print(f"  {RED}✗{RESET} build-essential install failed")
-            missing.append("build-essential")
 
     # Node.js
     if not _check_tool("Node.js", ["node", "--version"],
@@ -150,10 +194,13 @@ def check_prerequisites():
                         install_cmd="npm install -g @anthropic-ai/claude-code"):
         missing.append("claude")
 
-    # OpenClaude (required for non-Anthropic providers)
+    # OpenClaude (required for non-Anthropic providers — optional on Windows with Anthropic)
     if not _check_tool("OpenClaude", ["openclaude", "--version"],
                         install_cmd="npm install -g @gitlawb/openclaude"):
-        missing.append("openclaude")
+        if not _IS_WINDOWS:
+            missing.append("openclaude")
+        else:
+            print(f"  {YELLOW}!{RESET} OpenClaude: optional on Windows (Anthropic provider active)")
 
     print()
 

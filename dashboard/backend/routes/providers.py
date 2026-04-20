@@ -13,6 +13,33 @@ import re
 import secrets
 import shutil
 import subprocess
+import sys
+
+_IS_WINDOWS = sys.platform == "win32"
+
+
+_WIN_CLI_PATHS = [
+    r"C:\Users\LENOVO\AppData\Roaming\npm",
+    r"C:\Program Files\nodejs",
+]
+
+
+def _resolve_cli(command: str) -> str:
+    """On Windows, resolve .cmd/.exe path so subprocess.run can execute it."""
+    if not _IS_WINDOWS:
+        return command
+    # Ensure npm paths are in PATH so shutil.which can find .cmd files
+    for _p in _WIN_CLI_PATHS:
+        if _p not in os.environ.get("PATH", ""):
+            os.environ["PATH"] = _p + ";" + os.environ.get("PATH", "")
+    found = shutil.which(command)
+    if found:
+        return found
+    for ext in (".cmd", ".exe", ".bat"):
+        found = shutil.which(command + ext)
+        if found:
+            return found
+    return command
 import time
 import urllib.parse
 from pathlib import Path
@@ -95,9 +122,9 @@ def _run_cli_version(command: str, env: dict | None = None) -> dict:
 
     try:
         if command == "openclaude":
-            result = subprocess.run(["openclaude", "--version"], **run_kwargs)  # noqa: S603, S607
+            result = subprocess.run([_resolve_cli("openclaude"), "--version"], **run_kwargs)  # noqa: S603, S607
         elif command == "claude":
-            result = subprocess.run(["claude", "--version"], **run_kwargs)  # noqa: S603, S607
+            result = subprocess.run([_resolve_cli("claude"), "--version"], **run_kwargs)  # noqa: S603, S607
         else:
             return {"installed": False, "version": None, "path": None}
 
@@ -334,7 +361,7 @@ def test_provider(provider_id):
     if cli not in ALLOWED_CLI_COMMANDS:
         return jsonify({"success": False, "error": f"Unsupported CLI: {cli}"}), 400
 
-    if not shutil.which(cli):
+    if not shutil.which(cli) and not shutil.which(_resolve_cli(cli)):
         return jsonify({
             "success": False,
             "error": f"'{cli}' not found in PATH",
