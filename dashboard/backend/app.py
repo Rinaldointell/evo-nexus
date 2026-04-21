@@ -37,7 +37,11 @@ app.secret_key = _secret_key
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{WORKSPACE / 'dashboard' / 'data' / 'evonexus.db'}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
-CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
+_cors_origins = ["http://localhost:5173", "http://localhost:8080"]
+_extra_origin = os.environ.get("EVONEXUS_ORIGIN")
+if _extra_origin:
+    _cors_origins.append(_extra_origin)
+CORS(app, origins=_cors_origins, supports_credentials=True)
 
 # --------------- Database ---------------
 from models import db, User, needs_setup, seed_roles, seed_systems
