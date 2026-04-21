@@ -88,11 +88,15 @@ RUN printf 'server {\n\
     }\n\
 }\n' > /etc/nginx/sites-enabled/default
 
-# Startup: nginx (port 8080) + terminal-server (port 32352) + Flask (port 5000)
+# Startup: Flask first (bg) → wait ready → terminal-server (bg) → nginx (fg)
 RUN printf '#!/bin/sh\n\
-nginx\n\
+export EVONEXUS_PORT=5000\n\
+uv run python dashboard/backend/app.py &\n\
 node /workspace/dashboard/terminal-server/bin/server.js &\n\
-exec uv run python dashboard/backend/app.py\n' > /workspace/start.sh \
+echo "Waiting for Flask on :5000..."\n\
+until curl -sf http://127.0.0.1:5000/api/version > /dev/null 2>&1; do sleep 1; done\n\
+echo "Flask ready. Starting nginx."\n\
+exec nginx -g "daemon off;"\n' > /workspace/start.sh \
     && chmod +x /workspace/start.sh
 
 ENV EVONEXUS_PORT=5000
