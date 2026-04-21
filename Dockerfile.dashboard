@@ -26,9 +26,9 @@ COPY dashboard/terminal-server/ ./
 # --- Stage 2: Python backend ---
 FROM python:3.12-slim AS runtime
 
-# System deps
+# System deps (nginx routes /terminal/ → terminal-server:32352 via WebSocket proxy)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl nodejs npm \
+    curl nodejs npm nginx \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Claude Code CLI
@@ -67,13 +67,35 @@ COPY --from=terminal-build /terminal dashboard/terminal-server/
 # Create data directory for SQLite
 RUN mkdir -p dashboard/data
 
-# Startup script: launches terminal-server in background, then Flask
-RUN printf '#!/bin/sh\nnode /workspace/dashboard/terminal-server/bin/server.js &\nexec uv run python dashboard/backend/app.py\n' > /workspace/start.sh \
+# nginx: port 8080 (public) → Flask:5000 + terminal-server:32352
+RUN printf 'server {\n\
+    listen 8080;\n\
+    location /terminal/ {\n\
+        proxy_pass http://127.0.0.1:32352/;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header Upgrade $http_upgrade;\n\
+        proxy_set_header Connection "upgrade";\n\
+        proxy_set_header Host $host;\n\
+        proxy_read_timeout 86400;\n\
+    }\n\
+    location / {\n\
+        proxy_pass http://127.0.0.1:5000;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header Host $host;\n\
+        proxy_set_header X-Real-IP $remote_addr;\n\
+        proxy_set_header X-Forwarded-Proto $scheme;\n\
+        proxy_read_timeout 86400;\n\
+    }\n\
+}\n' > /etc/nginx/sites-enabled/default
+
+# Startup: nginx (port 8080) + terminal-server (port 32352) + Flask (port 5000)
+RUN printf '#!/bin/sh\n\
+nginx\n\
+node /workspace/dashboard/terminal-server/bin/server.js &\n\
+exec uv run python dashboard/backend/app.py\n' > /workspace/start.sh \
     && chmod +x /workspace/start.sh
 
-# Default port
-ENV EVONEXUS_PORT=8080
+ENV EVONEXUS_PORT=5000
 EXPOSE 8080
-EXPOSE 32352
 
 CMD ["/workspace/start.sh"]
