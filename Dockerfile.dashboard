@@ -90,19 +90,9 @@ RUN printf 'server {\n\
     }\n\
 }\n' > /etc/nginx/sites-enabled/default
 
-# Pre-configure Claude Code to use API key (skip OAuth on first run)
-RUN mkdir -p /root/.claude && \
-    printf '{"primaryApiKey":"%s","hasCompletedOnboarding":true,"installMethod":"global_npm"}\n' \
-    "${ANTHROPIC_API_KEY:-placeholder}" > /root/.claude/settings.json
-
 # Startup: Flask first (bg) → wait ready → terminal-server (bg) → nginx (fg)
 RUN printf '#!/bin/sh\n\
 export EVONEXUS_PORT=5000\n\
-# Inject real API key into Claude config at runtime\n\
-if [ -n "$ANTHROPIC_API_KEY" ]; then\n\
-  mkdir -p /root/.claude\n\
-  printf '"'"'{"primaryApiKey":"%s","hasCompletedOnboarding":true,"installMethod":"global_npm"}'"'"' "$ANTHROPIC_API_KEY" > /root/.claude/settings.json\n\
-fi\n\
 uv run python dashboard/backend/app.py &\n\
 node /workspace/dashboard/terminal-server/bin/server.js &\n\
 echo "Waiting for Flask on :5000..."\n\
