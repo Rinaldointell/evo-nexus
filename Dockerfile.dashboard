@@ -13,10 +13,12 @@ RUN npm install
 COPY dashboard/frontend/ ./
 RUN npm run build
 
-# --- Stage 1b: Terminal-server build ---
-FROM node:22-alpine AS terminal-build
+# --- Stage 1b: Terminal-server build (Debian to match runtime glibc) ---
+FROM node:22-slim AS terminal-build
 
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /terminal
 COPY dashboard/terminal-server/package.json dashboard/terminal-server/package-lock.json* ./
